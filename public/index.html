@@ -22,7 +22,10 @@
     </div>
     
     <div id="status"></div>
+
+    <div id="bucketList"></div>
     <div id="fileList"></div>
+    <div id="bucketFileList"></div>
 
     <script>
         const API_BASE = 'http://localhost:3001/files';
@@ -86,6 +89,30 @@
             }
         }
 
+        async function getFileUrlFromBucket(bucketName, fileName) {
+            try {
+                const response = await fetch(`${API_BASE}/${bucketName}/${fileName}`);
+                const result = await response.json();
+                window.open(result.fileUrl, '_blank');
+            } catch (error) {
+                alert('Failed to get file URL: ' + error.message);
+            }
+        }
+
+        async function deleteFileFromBucket(bucketName, fileName) {
+            if (!confirm(`Are you sure you want to delete "${fileName}" from bucket "${bucketName}"?`)) {
+                return;
+            }
+            
+            try {
+                await fetch(`${API_BASE}/${bucketName}/${fileName}`, { method: 'DELETE' });
+                loadFilesFromBucket(bucketName);
+                alert('File deleted successfully!');
+            } catch (error) {
+                alert('Delete failed: ' + error.message);
+            }
+        }
+
         async function loadExistingFiles() {
             try {
                 const response = await fetch(`${API_BASE}`);
@@ -98,22 +125,128 @@
         }
 
         function displayFiles() {
+            console.log('Displaying files:', uploadedFiles);
             const fileList = document.getElementById('fileList');
+            
+            if (!fileList) {
+                console.error('fileList element not found!');
+                return;
+            }
+            
+            console.log('Setting innerHTML for fileList');
             fileList.innerHTML = '<h3>Uploaded Files:</h3>';
             
+            if (!uploadedFiles || uploadedFiles.length === 0) {
+                fileList.innerHTML += '<p>No files found</p>';
+                return;
+            }
+            
             uploadedFiles.forEach(file => {
-                fileList.innerHTML += `
+                console.log('Processing file:', file);
+                const fileHtml = `
                     <div class="file-item">
                         <strong>${file.fileName}</strong><br>
                         <button onclick="getFileUrl('${file.fileName}')">View</button>
                         <button class="delete-btn" onclick="deleteFile('${file.fileName}')">Delete</button>
                     </div>
                 `;
+                console.log('Adding HTML:', fileHtml);
+                fileList.innerHTML += fileHtml;
+            });
+            
+            console.log('Final fileList innerHTML:', fileList.innerHTML);
+            console.log('fileList element:', fileList);
+            console.log('fileList style:', fileList.style.cssText);
+            
+            // Force visibility
+            fileList.style.display = 'block';
+            fileList.style.visibility = 'visible';
+        }
+
+        async function loadBuckets() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/buckets`);
+                const result = await response.json();
+                console.log('Buckets response:', result);
+                displayBuckets(result.buckets);
+            } catch (error) {
+                console.error('Failed to load buckets:', error);
+                document.getElementById('bucketList').innerHTML = '<h3>Available Buckets:</h3><p style="color: red;">Failed to load buckets</p>';
+            }
+        }
+
+        async function deleteBucket(bucketName) {
+            if (!confirm(`Are you sure you want to delete bucket "${bucketName}"? This will delete ALL files in the bucket!`)) {
+                return;
+            }
+            
+            try {
+                await fetch(`${API_BASE}/admin/bucket/${bucketName}`, { method: 'DELETE' });
+                loadBuckets();
+                alert('Bucket deleted successfully!');
+            } catch (error) {
+                alert('Delete bucket failed: ' + error.message);
+            }
+        }
+
+        function displayBuckets(buckets) {
+            const bucketList = document.getElementById('bucketList');
+            bucketList.innerHTML = '<h3>Available Buckets:</h3>';
+            
+            if (!buckets || buckets.length === 0) {
+                bucketList.innerHTML += '<p>No buckets found</p>';
+                return;
+            }
+            
+            buckets.forEach(bucketName => {
+                bucketList.innerHTML += `
+                    <div class="file-item">
+                        <strong>📁 ${bucketName}</strong><br>
+                        <button onclick="loadFilesFromBucket('${bucketName}')">View Files</button>
+                        <button class="delete-btn" onclick="deleteBucket('${bucketName}')">Delete Bucket</button>
+                    </div>
+                `;
             });
         }
 
-        // Load existing files on page load
-        window.onload = loadExistingFiles;
+        async function loadFilesFromBucket(bucketName) {
+            try {
+                console.log('Loading files from bucket:', bucketName);
+                const response = await fetch(`${API_BASE}/bucket/${bucketName}/files`);
+                const result = await response.json();
+                console.log('Files response:', result);
+                const bucketFiles = result.files.map(fileName => ({ fileName }));
+                displayBucketFiles(bucketFiles, bucketName);
+            } catch (error) {
+                console.error('Failed to load files from bucket:', error);
+            }
+        }
+
+        function displayBucketFiles(files, bucketName) {
+            const bucketFileList = document.getElementById('bucketFileList');
+            bucketFileList.innerHTML = `<h3>Files in ${bucketName}:</h3>`;
+            
+            if (!files || files.length === 0) {
+                bucketFileList.innerHTML += '<p>No files found in this bucket</p>';
+                return;
+            }
+            
+            files.forEach(file => {
+                bucketFileList.innerHTML += `
+                    <div class="file-item">
+                        <strong>${file.fileName}</strong><br>
+                        <button onclick="getFileUrlFromBucket('${bucketName}', '${file.fileName}')">View</button>
+                        <button class="delete-btn" onclick="deleteFileFromBucket('${bucketName}', '${file.fileName}')">Delete</button>
+                    </div>
+                `;
+            });
+        }
+
+        // Load existing files and buckets on page load
+        window.onload = function() {
+            loadExistingFiles();
+            loadBuckets();
+        };
     </script>
 </body>
 </html>

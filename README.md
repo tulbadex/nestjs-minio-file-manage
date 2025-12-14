@@ -69,9 +69,11 @@ A complete **NestJS** application demonstrating **MinIO** object storage integra
 | `POST` | `/files/upload` | Upload file to default bucket |
 | `POST` | `/files/upload/:bucket` | Upload file to specific bucket |
 | `GET` | `/files` | List all files in default bucket |
-| `GET` | `/files/:bucket` | List files in specific bucket |
+| `GET` | `/files/admin/buckets` | List all buckets with prefix filter |
+| `GET` | `/files/bucket/:bucket/files` | List files in specific bucket |
 | `GET` | `/files/:bucket/:fileName` | Get presigned URL for file |
 | `DELETE` | `/files/:bucket/:fileName` | Delete specific file |
+| `DELETE` | `/files/admin/bucket/:bucket` | Delete bucket (empties first) |
 
 ### Example Usage
 
@@ -87,9 +89,14 @@ curl -X POST http://localhost:3001/files/upload/documents \
   -F "file=@contract.pdf"
 ```
 
-#### List Files
+#### List All Buckets
 ```bash
-curl http://localhost:3001/files/images
+curl http://localhost:3001/files/admin/buckets
+```
+
+#### List Files in Bucket
+```bash
+curl http://localhost:3001/files/bucket/images/files
 ```
 
 #### Get File URL
@@ -100,6 +107,11 @@ curl http://localhost:3001/files/images/photo.jpg
 #### Delete File
 ```bash
 curl -X DELETE http://localhost:3001/files/documents/contract.pdf
+```
+
+#### Delete Bucket
+```bash
+curl -X DELETE http://localhost:3001/files/admin/bucket/documents
 ```
 
 ## 🗂️ Multi-Bucket Support

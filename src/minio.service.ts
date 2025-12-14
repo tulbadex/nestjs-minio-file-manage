@@ -67,22 +67,85 @@ export class MinioService {
   }
 
   async listFilesInBucket(bucketName: string): Promise<string[]> {
-    const files: string[] = [];
-    const stream = this.minioClient.listObjects(bucketName, '', true);
-    
-    return new Promise((resolve, reject) => {
-      stream.on('data', (obj) => obj.name && files.push(obj.name));
-      stream.on('end', () => resolve(files));
-      stream.on('error', reject);
-    });
+    try {
+      const exists = await this.minioClient.bucketExists(bucketName);
+      if (!exists) {
+        return [];
+      }
+      
+      const files: string[] = [];
+      const stream = this.minioClient.listObjects(bucketName, '', true);
+      
+      return new Promise((resolve, reject) => {
+        stream.on('data', (obj) => obj.name && files.push(obj.name));
+        stream.on('end', () => resolve(files));
+        stream.on('error', () => resolve([]));
+      });
+    } catch (error) {
+      return [];
+    }
   }
 
   async getFileUrlFromBucket(bucketName: string, fileName: string): Promise<string> {
-    return await this.minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60);
+    try {
+      const exists = await this.minioClient.bucketExists(bucketName);
+      if (!exists) {
+        throw new Error('Bucket does not exist');
+      }
+      return await this.minioClient.presignedGetObject(bucketName, fileName, 24 * 60 * 60);
+    } catch (error) {
+      throw error;
+    }
   }
 
   async deleteFileFromBucket(bucketName: string, fileName: string): Promise<void> {
     await this.minioClient.removeObject(bucketName, fileName);
+  }
+
+  async deleteBucket(bucketName: string): Promise<void> {
+    // First, delete all objects in the bucket
+    const objectsList = this.minioClient.listObjects(bucketName, '', true);
+    const objectsToDelete: string[] = [];
+    
+    return new Promise((resolve, reject) => {
+      objectsList.on('data', (obj) => {
+        if (obj.name) objectsToDelete.push(obj.name);
+      });
+      
+      objectsList.on('end', async () => {
+        try {
+          // Delete all objects first
+          if (objectsToDelete.length > 0) {
+            await this.minioClient.removeObjects(bucketName, objectsToDelete);
+          }
+          // Then delete the bucket
+          await this.minioClient.removeBucket(bucketName);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      objectsList.on('error', reject);
+    });
+  }
+
+  async listBuckets(): Promise<string[]> {
+    try {
+      const buckets = await this.minioClient.listBuckets();
+      console.log('MinIO buckets:', buckets);
+      // Filter buckets with deenai- prefix
+      const deenaiBuckets = buckets
+        .map(bucket => bucket.name)
+        .filter(name => name.startsWith('deenai-'));
+      
+      console.log('Filtered deenai buckets:', deenaiBuckets);
+      return deenaiBuckets;
+    } catch (error) {
+      console.error('Error listing buckets:', error);
+      // Return empty array if listing fails
+      return [];
+    }
   }
 
   private async ensureSpecificBucket(bucketName: string) {

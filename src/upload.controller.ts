@@ -14,6 +14,18 @@ import { MinioService } from './minio.service';
 export class UploadController {
   constructor(private readonly minioService: MinioService) {}
 
+  @Get('admin/buckets')
+  async listBuckets() {
+    const buckets = await this.minioService.listBuckets();
+    return { buckets };
+  }
+
+  @Delete('admin/bucket/:bucketName')
+  async deleteBucket(@Param('bucketName') bucketName: string) {
+    await this.minioService.deleteBucket(bucketName);
+    return { success: true, message: 'Bucket deleted successfully' };
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
@@ -70,7 +82,7 @@ export class UploadController {
     return { success: true, message: 'File deleted successfully' };
   }
 
-  @Get(':bucket')
+  @Get('bucket/:bucket/files')
   async listFilesInBucket(@Param('bucket') bucket: string) {
     const files = await this.minioService.listFilesInBucket(bucket);
     return { files, bucket };
