@@ -58,6 +58,12 @@ export class UploadController {
     return { fileUrl };
   }
 
+  @Delete(':fileName')
+  async deleteFileFromDefault(@Param('fileName') fileName: string) {
+    await this.minioService.deleteFile(fileName);
+    return { success: true, message: 'File deleted successfully' };
+  }
+
   @Delete(':bucket/:fileName')
   async deleteFile(@Param('bucket') bucket: string, @Param('fileName') fileName: string) {
     await this.minioService.deleteFileFromBucket(bucket, fileName);

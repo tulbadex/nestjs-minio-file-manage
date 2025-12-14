@@ -62,10 +62,15 @@
         }
 
         async function deleteFile(fileName) {
+            if (!confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                return;
+            }
+            
             try {
                 await fetch(`${API_BASE}/${fileName}`, { method: 'DELETE' });
                 uploadedFiles = uploadedFiles.filter(f => f.fileName !== fileName);
                 displayFiles();
+                alert('File deleted successfully!');
             } catch (error) {
                 alert('Delete failed: ' + error.message);
             }
